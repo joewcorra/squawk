@@ -3,6 +3,7 @@ library(readr)
 library(dplyr)
 library(dbplyr)
 library(rlang)
+library(RSQLite)
 
 ui <- fluidPage(
   
@@ -53,7 +54,7 @@ server <- function(input, output, session) {
     switch(
       dialect,
       "mssql" = simulate_mssql(),
-      "postgres" = simulate_postgresql(),
+      "postgres" = simulate_postgres(),
       "sqlite" = simulate_sqlite(),
       "oracle" = simulate_oracle(),
       simulate_mssql()
