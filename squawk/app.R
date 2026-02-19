@@ -4,6 +4,9 @@ library(dplyr)
 library(dbplyr)
 library(rlang)
 library(RSQLite)
+library(jsonlite)
+library(tidyr)
+
 
 ui <- fluidPage(
   
@@ -14,7 +17,7 @@ ui <- fluidPage(
       fileInput(
         "schema_file",
         "Upload Schema CSV",
-        accept = c(".csv")
+        accept = c(".csv", ".json")
       ),
       
       selectInput(
@@ -41,6 +44,7 @@ ui <- fluidPage(
     ),
     
     mainPanel(
+      tableOutput("schema_preview"),
       h4("Generated SQL:"),
       verbatimTextOutput("sql_output")
     )
@@ -64,9 +68,18 @@ server <- function(input, output, session) {
   # ---- Reactive schema loader ----
   schema_tbl <- reactive({
     req(input$schema_file)
-    read_csv(input$schema_file$datapath, show_col_types = FALSE)
+    ext <- tools::file_ext(input$schema_file$name)
+    if (ext == "csv") {
+      read_csv(input$schema_file$datapath, show_col_types = FALSE)
+    } else if (ext == "json") {
+      jsonlite::fromJSON(input$schema_file$datapath) |> as_tibble()
+    } else {
+      showNotification("Unsupported file type", type = "error")
+      NULL
+    }
   })
   
+
   # ---- SQL generator ----
   result_sql <- eventReactive(input$run_btn, {
     req(schema_tbl())
@@ -104,7 +117,8 @@ server <- function(input, output, session) {
       error = function(e) paste("Error generating SQL:", e$message)
     )
   })
-  
+  # ---- Schema viewer ----
+  output$schema_preview <- renderTable({schema_tbl() %>% slice(1)})
   # ---- Send SQL to UI ----
   output$sql_output <- renderText({
     result_sql()
